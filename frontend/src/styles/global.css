@@ -164,6 +164,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stamp.confirmed { color: var(--moss); background: var(--moss-wash); }
 .stamp.dismissed { color: var(--ink-faint); background: var(--paper-2); }
 .stamp.pending { color: var(--brass); background: var(--brass-wash); }
+/* 修正批次状态 */
+.stamp.submitted { color: var(--brass); background: var(--brass-wash); }
+.stamp.approved { color: var(--slate); background: var(--slate-wash); }
+.stamp.applied { color: var(--moss); background: var(--moss-wash); }
+.stamp.conflict { color: var(--ochre); background: var(--ochre-wash); }
+.stamp.failed { color: var(--ochre); background: var(--ochre-wash); }
+.stamp.withdrawn { color: var(--ink-faint); background: var(--paper-2); }
+.stamp.restored { color: var(--slate); background: var(--slate-wash); }
+.stamp.skipped { color: var(--ink-faint); background: var(--paper-2); }
 .stamp.entered { animation: stamp-in 260ms var(--ease-out) both; }
 @keyframes stamp-in { from { transform: rotate(-1.6deg) scale(1.5); opacity: 0; } to { transform: rotate(-1.6deg) scale(1); opacity: 1; } }
 

@@ -12,5 +12,11 @@ ACTIONS: dict[str, str] = {
     "flag.detect": "重跑价格核验",
     "flag.review": "复核价格工单",
     "listing.price_fix": "修正挂牌单价",
+    "correction.submit": "提报挂牌价修正批次",
+    "correction.approve": "审批修正批次",
+    "correction.publish": "发布修正批次",
+    "correction.retry": "重试发布修正批次",
+    "correction.rebase": "重定批次基线",
+    "correction.withdraw": "撤回修正批次",
     "export.market": "导出行情 CSV",
 }

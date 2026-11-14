@@ -207,6 +207,72 @@ export interface FlagCounts {
   by_status: Record<string, number>;
 }
 
+export interface CorrectionItemRow {
+  id: number;
+  listing_id: number;
+  community: string | null;
+  layout: string | null;
+  title: string | null;
+  source_name: string | null;
+  base_price: number | null;
+  target_price: number;
+  current_price: number | null;
+  status: string;
+  status_label: string;
+  applied_at: string | null;
+}
+
+export interface CorrectionVersionRow {
+  id: number;
+  listing_id: number;
+  source: string;
+  source_label: string;
+  old_price: number | null;
+  new_price: number | null;
+  actor_email: string;
+  created_at: string | null;
+}
+
+export interface CorrectionConflict {
+  listing_id: number;
+  base_price: number | null;
+  target_price: number;
+  current_price: number | null;
+  reason: string;
+}
+
+export interface CorrectionBatchRow {
+  id: number;
+  batch_no: string;
+  request_key: string;
+  status: string;
+  status_label: string;
+  item_count: number;
+  applied_count: number;
+  note: string;
+  submitted_by: string;
+  submitted_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  published_by: string | null;
+  published_at: string | null;
+  conflict_detail: CorrectionConflict[];
+  error: string | null;
+  created_at: string | null;
+  items: CorrectionItemRow[];
+  versions: CorrectionVersionRow[];
+}
+
+export interface CorrectionCounts {
+  total: number;
+  by_status: Record<string, number>;
+}
+
+export interface CorrectionBatchPage {
+  items: CorrectionBatchRow[];
+  counts: CorrectionCounts;
+}
+
 export interface Overview {
   sources: number;
   sources_enabled: number;

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
+import Corrections from '../pages/Corrections';
 import Flags from '../pages/Flags';
 import ListingDetail from '../pages/ListingDetail';
 import Listings from '../pages/Listings';
@@ -43,6 +44,14 @@ export default function AppRouter() {
         element={
           <Protected permission="flag:read">
             <Flags />
+          </Protected>
+        }
+      />
+      <Route
+        path="/corrections"
+        element={
+          <Protected permission="correction:read">
+            <Corrections />
           </Protected>
         }
       />

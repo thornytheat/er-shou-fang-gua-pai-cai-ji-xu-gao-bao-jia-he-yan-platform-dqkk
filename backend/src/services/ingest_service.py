@@ -10,9 +10,10 @@ import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.constants.enums import IngestStatus, ReviewStatus, TriggerKind
+from src.constants.enums import IngestStatus, PriceChangeSource, ReviewStatus, TriggerKind
 from src.constants.limits import MAX_ITEMS_PER_RUN
 from src.models.block_stat import BlockStat
+from src.models.correction import ListingPriceVersion
 from src.models.ingest_run import IngestRun
 from src.models.listing import Listing
 from src.models.price_flag import PriceFlag
@@ -37,7 +38,9 @@ def assert_not_running(db: Session) -> None:
         raise AppError("INGEST_RUNNING", 409, detail={"run_no": running.run_no})
 
 
-def _upsert_listings(db: Session, rows: list[dict], sources: dict[str, Source]) -> tuple[int, int]:
+def _upsert_listings(
+    db: Session, rows: list[dict], sources: dict[str, Source], operator_email: str
+) -> tuple[int, int]:
     created = 0
     updated = 0
     for row in rows[:MAX_ITEMS_PER_RUN]:
@@ -64,6 +67,18 @@ def _upsert_listings(db: Session, rows: list[dict], sources: dict[str, Source]) 
             created += 1
         else:
             updated += 1
+            # 采集改价也留版本：修正批次撤回 / 审计追溯时能看到「后续采集」这一笔
+            if listing.unit_price != row.get("unit_price"):
+                db.add(
+                    ListingPriceVersion(
+                        listing_id=listing.id,
+                        batch_id=None,
+                        source=PriceChangeSource.INGEST.value,
+                        old_price=listing.unit_price,
+                        new_price=row.get("unit_price"),
+                        actor_email=operator_email,
+                    )
+                )
         listing.community = row["community"]
         listing.layout = row["layout"]
         listing.area_sqm = row.get("area_sqm")
@@ -156,7 +171,7 @@ def run_ingest(
         source.last_run_at = utcnow()
         source.last_run_items = outcome["items_fetched"]
 
-    created, updated = _upsert_listings(db, all_rows, source_map)
+    created, updated = _upsert_listings(db, all_rows, source_map, operator_email)
     recomputed = cluster_service.recompute(db)
     blocks = _price_refresh_summary(db)
 

@@ -41,6 +41,41 @@ export const INGEST_STATUS_LABELS: Record<string, string> = {
   failed: '失败',
 };
 
+export const CORRECTION_STATUS = {
+  SUBMITTED: 'submitted',
+  APPROVED: 'approved',
+  APPLIED: 'applied',
+  CONFLICT: 'conflict',
+  FAILED: 'failed',
+  WITHDRAWN: 'withdrawn',
+} as const;
+
+export const CORRECTION_STATUS_LABELS: Record<string, string> = {
+  submitted: '待审批',
+  approved: '待发布',
+  applied: '已生效',
+  conflict: '冲突暂停',
+  failed: '发布失败',
+  withdrawn: '已撤回',
+};
+
+export const CORRECTION_STATUS_ORDER = ['submitted', 'approved', 'conflict', 'failed', 'applied', 'withdrawn'];
+
+export const CORRECTION_ITEM_LABELS: Record<string, string> = {
+  pending: '待生效',
+  applied: '已生效',
+  conflict: '冲突',
+  restored: '已回退',
+  skipped: '已跳过',
+};
+
+export const PRICE_CHANGE_SOURCE_LABELS: Record<string, string> = {
+  correction: '修正批次',
+  manual: '手工修正',
+  ingest: '采集刷新',
+  withdraw: '批次撤回',
+};
+
 export const LAYOUT = ['一居', '两居', '三居'];
 
 export const FLOOR_BAND = ['低楼层', '中楼层', '高楼层'];

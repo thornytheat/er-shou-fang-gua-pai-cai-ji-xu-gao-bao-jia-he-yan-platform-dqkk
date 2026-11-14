@@ -10,8 +10,8 @@ ROLE_LABELS: dict[str, str] = {
 }
 
 ROLE_DUTIES: dict[str, str] = {
-    Role.ADMIN.value: "维护采集源与阈值、复核价格工单、导出行情周报、查看审计",
-    Role.ANALYST.value: "跑采集、复核工单、修正挂牌单价",
+    Role.ADMIN.value: "维护采集源与阈值、复核价格工单、审批与发布挂牌价修正、导出行情周报、查看审计",
+    Role.ANALYST.value: "跑采集、复核工单、提报挂牌价修正批次、修正挂牌单价",
     Role.CLIENT.value: "只读行情与核验进度，看不到原始联系方式",
 }
 
@@ -20,11 +20,13 @@ PERMISSIONS: dict[str, set[str]] = {
         "listing:read", "listing:write", "source:read", "source:write",
         "ingest:read", "ingest:run", "cluster:read", "cluster:recompute",
         "flag:read", "flag:review", "export:read", "audit:read", "contact:read",
+        "correction:read", "correction:submit", "correction:approve",
     },
     Role.ANALYST.value: {
         "listing:read", "listing:write", "source:read",
         "ingest:read", "ingest:run", "cluster:read", "cluster:recompute",
         "flag:read", "flag:review", "contact:read",
+        "correction:read", "correction:submit",
     },
     Role.CLIENT.value: {"listing:read", "cluster:read", "flag:read"},
 }
@@ -40,6 +42,10 @@ REVIEW_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
 CLUSTER_WRITE_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
 EXPORT_ROLES = (Role.ADMIN.value,)
 AUDIT_ROLES = (Role.ADMIN.value,)
+# 修正批次：提报 admin+analyst（数据专员代门店录入）；审批/发布/撤回只有研究组长
+CORRECTION_READ_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
+CORRECTION_SUBMIT_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
+CORRECTION_APPROVE_ROLES = (Role.ADMIN.value,)
 # 能看到原始联系方式（电话）的角色
 CONTACT_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
 

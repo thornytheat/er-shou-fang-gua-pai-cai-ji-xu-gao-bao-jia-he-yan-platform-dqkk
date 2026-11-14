@@ -4,6 +4,8 @@ from __future__ import annotations
 from fastapi import Request
 from sqlalchemy.orm import Session
 
+from src.constants.enums import PriceChangeSource
+from src.models.correction import ListingPriceVersion
 from src.services import audit_service, cluster_service, listing_service
 
 
@@ -19,6 +21,17 @@ def fix_price(db: Session, listing_id: int, unit_price: int, note: str, principa
     before = listing_service.get_listing(db, listing_id, principal["role"])
     previous = before["listing"]["unit_price"]
     listing_service.fix_price(db, listing_id, unit_price, note)
+    if previous != unit_price:
+        db.add(
+            ListingPriceVersion(
+                listing_id=listing_id,
+                batch_id=None,
+                source=PriceChangeSource.MANUAL.value,
+                old_price=previous,
+                new_price=unit_price,
+                actor_email=principal["email"],
+            )
+        )
     audit_service.record(
         db,
         actor_email=principal["email"],

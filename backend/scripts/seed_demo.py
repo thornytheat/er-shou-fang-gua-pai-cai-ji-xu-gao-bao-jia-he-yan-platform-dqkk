@@ -1,4 +1,4 @@
-"""幂等 seed：3 账号 / 5 采集源 / 240 挂牌（32 组重复共 78 条）/ 12 个价格工单。
+"""幂等 seed：3 账号 / 5 采集源 / 240 挂牌（32 组重复共 78 条）/ 12 个价格工单 / 1 个演示修正批次。
 
 自然键 upsert：
   users.email
@@ -8,6 +8,7 @@
   price_flags.listing_id                  （同上，保留人工复核态）
   ingest_runs.seed_key
   audit_logs.seed_key
+  correction_batches.request_key
 
 重复执行不新增、不覆盖用户改过的数据；SEED_SUMMARY 逐字一致。
 """
@@ -19,9 +20,11 @@ from datetime import date, datetime
 from sqlalchemy import func, select
 
 from src.config.database import session_scope
+from src.constants.enums import CorrectionStatus
 from src.models.audit import AuditLog
 from src.models.block_stat import BlockStat
 from src.models.cluster import ListingCluster
+from src.models.correction import CorrectionBatch, CorrectionItem
 from src.models.ingest_run import IngestRun
 from src.models.listing import Listing
 from src.models.price_flag import PriceFlag
@@ -31,7 +34,7 @@ from src.services import cluster_service, fetch_service
 from src.utils.security import hash_password
 from src.utils.timeutil import utcnow
 
-from scripts.demo_config import DEMO_PASSWORD, DEMO_USERS, HISTORY_RUNS, SEED_AUDIT
+from scripts.demo_config import DEMO_PASSWORD, DEMO_USERS, HISTORY_RUNS, SEED_AUDIT, SEED_CORRECTION
 
 
 def ensure_users(db) -> int:
@@ -174,6 +177,48 @@ def ensure_seed_audit(db) -> None:
     db.flush()
 
 
+def ensure_correction_batch(db) -> int:
+    """演示修正批次（待审批）：只建单不改价，审批 / 发布 / 撤回留在台面上演示。"""
+    total = db.scalar(select(func.count()).select_from(CorrectionBatch)) or 0
+    if db.scalar(select(CorrectionBatch).where(CorrectionBatch.request_key == SEED_CORRECTION["request_key"])):
+        return total
+    rows = db.scalars(
+        select(Listing)
+        .where(
+            Listing.community == SEED_CORRECTION["community"],
+            Listing.layout == SEED_CORRECTION["layout"],
+            Listing.unit_price.isnot(None),
+        )
+        .order_by(Listing.id)
+        .limit(SEED_CORRECTION["size"])
+    ).all()
+    if not rows:
+        return total
+    batch = CorrectionBatch(
+        batch_no=SEED_CORRECTION["batch_no"],
+        request_key=SEED_CORRECTION["request_key"],
+        status=CorrectionStatus.SUBMITTED.value,
+        item_count=len(rows),
+        note=SEED_CORRECTION["note"],
+        submitted_by="analyst@rentlens.io",
+        submitted_at=utcnow(),
+    )
+    db.add(batch)
+    db.flush()
+    for listing in rows:
+        target = int(round(listing.unit_price * SEED_CORRECTION["discount"], -2))
+        db.add(
+            CorrectionItem(
+                batch_id=batch.id,
+                listing_id=listing.id,
+                base_price=listing.unit_price,
+                target_price=target,
+            )
+        )
+    db.flush()
+    return total + 1
+
+
 def seed_all() -> str:
     with session_scope() as db:
         user_count = ensure_users(db)
@@ -182,6 +227,7 @@ def seed_all() -> str:
         cluster_service.recompute(db)
         ensure_history_runs(db)
         ensure_seed_audit(db)
+        correction_count = ensure_correction_batch(db)
 
         source_count = db.scalar(select(func.count()).select_from(Source)) or 0
         listing_count = db.scalar(select(func.count()).select_from(Listing)) or 0
@@ -199,7 +245,7 @@ def seed_all() -> str:
         f"clusters={cluster_count} flags={flag_count} users={user_count}"
     )
     print(summary, flush=True)
-    print(f"SEED_DETAIL blocks={block_count}", flush=True)
+    print(f"SEED_DETAIL blocks={block_count} corrections={correction_count}", flush=True)
     return summary
 
 

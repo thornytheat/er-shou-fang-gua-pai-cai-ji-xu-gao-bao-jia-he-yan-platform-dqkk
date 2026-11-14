@@ -16,7 +16,7 @@ SKIP_PATHS = {"/api/health", "/health"}
 # 写接口单独额度。注意：Nginx 反代会把 /api 前缀剥掉（location /api/ -> proxy_pass …/），
 # 因此统一按「去掉 /api 之后的路径」匹配；否则经前端代理进来的写请求全部落进默认读桶，
 # RATE_LIMIT_WRITE_PER_MINUTE 在线上等于没生效（写接口可被无限连打）。
-WRITE_BUCKET_PREFIXES = ("/ingest-runs", "/sources", "/flags", "/clusters", "/listings")
+WRITE_BUCKET_PREFIXES = ("/ingest-runs", "/sources", "/flags", "/clusters", "/listings", "/corrections")
 
 
 def _normalized_path(path: str) -> str:

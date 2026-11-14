@@ -27,6 +27,18 @@ SEED_AUDIT = [
      {"review_status": "confirmed", "flag_type": "high", "note": "业主确认是试探价"}),
 ]
 
+# 演示修正批次：兰亭苑三居门店集中回价（待审批），目标价 = 基线 × 0.985 取整到百位。
+# 幂等键 request_key，重复 seed 不新增；只建单不改价，审批 / 发布留在台面上演示。
+SEED_CORRECTION = {
+    "request_key": "seed:correction:001",
+    "batch_no": "FIX-SEED-0001",
+    "note": "兰亭苑门店 11-14 集中回价（演示单，待审批）",
+    "community": "兰亭苑",
+    "layout": "三居",
+    "size": 2,
+    "discount": 0.985,
+}
+
 # 团队信息（前端登录页展示）
 TEAM = {
     "name": "安家数据服务 · 楼盘研究组",

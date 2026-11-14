@@ -46,3 +46,9 @@ DEFAULT_BACKOFF_BASE_MS = 800
 MAX_ITEMS_PER_RUN = 600
 # 运行记录页默认返回条数
 RUN_HISTORY_LIMIT = 20
+
+# ---------- 挂牌价修正批次 ----------
+# 单批次最多多少条修正项（门店集中提报的上限，防误粘贴整表）
+MAX_CORRECTION_ITEMS = 50
+# 批次列表默认返回条数
+CORRECTION_PAGE_LIMIT = 40

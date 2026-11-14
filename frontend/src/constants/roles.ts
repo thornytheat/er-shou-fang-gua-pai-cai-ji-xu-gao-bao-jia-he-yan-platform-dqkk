@@ -8,8 +8,8 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 export const ROLE_DUTIES: Record<string, string> = {
-  admin: '维护采集源与阈值、复核价格工单、导出行情周报、查看审计',
-  analyst: '跑采集、复核工单、修正挂牌单价',
+  admin: '维护采集源与阈值、复核价格工单、审批与发布挂牌价修正、导出行情周报、查看审计',
+  analyst: '跑采集、复核工单、提报挂牌价修正批次、修正挂牌单价',
   client: '只读行情与核验进度，看不到原始联系方式',
 };
 
@@ -28,6 +28,9 @@ export const PERMISSIONS: Record<string, string[]> = {
     'export:read',
     'audit:read',
     'contact:read',
+    'correction:read',
+    'correction:submit',
+    'correction:approve',
   ],
   analyst: [
     'listing:read',
@@ -40,6 +43,8 @@ export const PERMISSIONS: Record<string, string[]> = {
     'flag:read',
     'flag:review',
     'contact:read',
+    'correction:read',
+    'correction:submit',
   ],
   client: ['listing:read', 'cluster:read', 'flag:read'],
 };

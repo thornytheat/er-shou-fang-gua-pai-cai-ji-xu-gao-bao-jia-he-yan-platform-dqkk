@@ -113,3 +113,74 @@ INGEST_STATUS_LABELS: dict[str, str] = {
     IngestStatus.PARTIAL.value: "部分成功",
     IngestStatus.FAILED.value: "失败",
 }
+
+
+class CorrectionStatus(StrEnum):
+    """挂牌价修正批次状态机。
+
+    submitted --审批通过--> approved --发布成功--> applied
+    审批 / 发布两道闸口都会按房源基线核对，任一冲突整批转 conflict；
+    发布异常转 failed（旧价保留，可 retry）；任意未终态可 withdraw。
+    """
+
+    SUBMITTED = "submitted"    # 门店已提报，待研究组审批
+    APPROVED = "approved"      # 审批通过，待统一下发
+    APPLIED = "applied"        # 已原子生效（终态，可撤回）
+    CONFLICT = "conflict"      # 基线冲突，整批暂停（可重定基线或撤回）
+    FAILED = "failed"          # 发布失败，旧价保留（可重试或撤回）
+    WITHDRAWN = "withdrawn"    # 已撤回（终态）
+
+
+CORRECTION_STATUS_LABELS: dict[str, str] = {
+    CorrectionStatus.SUBMITTED.value: "待审批",
+    CorrectionStatus.APPROVED.value: "待发布",
+    CorrectionStatus.APPLIED.value: "已生效",
+    CorrectionStatus.CONFLICT.value: "冲突暂停",
+    CorrectionStatus.FAILED.value: "发布失败",
+    CorrectionStatus.WITHDRAWN.value: "已撤回",
+}
+
+CORRECTION_STATUS_ORDER: list[str] = [
+    CorrectionStatus.SUBMITTED.value,
+    CorrectionStatus.APPROVED.value,
+    CorrectionStatus.CONFLICT.value,
+    CorrectionStatus.FAILED.value,
+    CorrectionStatus.APPLIED.value,
+    CorrectionStatus.WITHDRAWN.value,
+]
+
+
+class CorrectionItemStatus(StrEnum):
+    """批次内单条修正项的状态。"""
+
+    PENDING = "pending"      # 待生效
+    APPLIED = "applied"      # 已生效
+    CONFLICT = "conflict"    # 基线冲突（当前价偏离提交基线）
+    RESTORED = "restored"    # 批次撤回后已回退到原值
+    SKIPPED = "skipped"      # 未生效即撤回，或撤回时当前价已被后续采集改写（不覆盖）
+
+
+CORRECTION_ITEM_LABELS: dict[str, str] = {
+    CorrectionItemStatus.PENDING.value: "待生效",
+    CorrectionItemStatus.APPLIED.value: "已生效",
+    CorrectionItemStatus.CONFLICT.value: "冲突",
+    CorrectionItemStatus.RESTORED.value: "已回退",
+    CorrectionItemStatus.SKIPPED.value: "已跳过",
+}
+
+
+class PriceChangeSource(StrEnum):
+    """挂牌价版本来源（listing_price_versions.source）。"""
+
+    CORRECTION = "correction"  # 修正批次发布
+    MANUAL = "manual"          # 详情页手工修单价
+    INGEST = "ingest"          # 采集 upsert 改价
+    WITHDRAW = "withdraw"      # 批次撤回回退
+
+
+PRICE_CHANGE_SOURCE_LABELS: dict[str, str] = {
+    PriceChangeSource.CORRECTION.value: "修正批次",
+    PriceChangeSource.MANUAL.value: "手工修正",
+    PriceChangeSource.INGEST.value: "采集刷新",
+    PriceChangeSource.WITHDRAW.value: "批次撤回",
+}

@@ -22,10 +22,10 @@
 4. **08:33** 均价刷新：`兰亭苑 三居` 去重前 **61,200 元/㎡**（42 条含重复）→ 去重后 **58,900 元/㎡**（28 套主房源）。
 5. **08:34** 稳健 z：8 个小区×户型分组各 ≥8 套，`阳光里 两居` 一套 79,072 元/㎡ 的钓鱼价偏离中位 **41.2%**、**z=4.31**，判 `high`；整批产出 **12 个工单（7 高 / 3 低 / 2 待确认）**。
 6. **09:10** 数据专员在核验队列确认 3 个虚高、驳回 1 个引流价，备注写进审计。
-7. **09:20** 门店回价：把 `兰亭苑 三居` 一套 65,686 元/㎡ 修正为 63,900，触发该批次中位/MAD 与工单重算。
+7. **09:20** 门店集中提报挂牌价修正：数据专员把 `兰亭苑 三居` 2 套回价录成修正批次（提交时快照基线），研究组长审批后统一下发——发布时逐套核对「原值 / 提交值 / 当前值」，无冲突才原子生效，该批次中位/MAD 与工单同批重算。
 8. **09:30** 研究组长导出行情 CSV（194 行，含簇成员数、跨平台数、偏离、z、复核态），发周报。
 9. **10:00** 组长在「采集源与运行」把门店群公告的节奏从 hourly 改成 twice_daily，写审计。
-10. **周复盘** 打开审计日志核对「谁改了什么价、谁确认了哪个虚高」。
+10. **周复盘** 打开审计日志核对「谁改了什么价、谁确认了哪个虚高」，价格版本表里每笔改价（修正批次 / 手工 / 采集 / 撤回）都有据可查。
 
 ---
 
@@ -38,7 +38,17 @@
 | 挂牌池 | `/listings` | 重复标记、单价排序、小区/户型/来源/标记筛选、去重后口径切换、分页 |
 | 房源详情 | `/listings/:id` | 多平台并排对比 + 簇内相似度 + 价格序列 SVG + 小区×户型 均价口径（去重前/后） |
 | 核验队列 | `/flags` | 虚高/虚低/待确认分栏、偏离条、稳健 z、置信度、一键确认/驳回、导出 |
+| 挂牌价修正 | `/corrections` | 门店集中提报 → 研究组审批 → 统一下发；基线三值核对、冲突整批暂停、原子生效、失败可重试、撤回留痕 |
 | 行情导出 | `/flags`、API | `GET /api/exports/market.csv`，去重后主房源口径，194 行 |
+
+### 挂牌价修正的一致性口径（`/corrections`）
+
+门店提报的修正单在等待审批期间，同一房源可能被采集刷新盖掉新价；重复审批、发布失败后重试也容易让「价格 / 去重行情 / 虚高工单」各走一套。本模块的约束：
+
+1. **基线核对**：提报时快照每套房源单价为基线（原值）；审批与发布两道闸口都比对当前值，任一偏离 → **整批暂停**（`conflict`），逐条列出原值 / 提交值 / 当前值；可「以当前价重定基线」回到待发布，或整批撤回。
+2. **原子生效**：无冲突时，改价 + 价格版本 + 去重簇 / 均价 / 虚高工单重算在**同一事务**提交；任一环节失败整体回滚，**旧版本挂牌价保留**，批次转 `failed` 可重试。
+3. **幂等**：提报靠 `request_key` 唯一索引去重（双击 / 重发返回原批次）；审批、发布、撤回均为状态机守卫下的幂等操作（重复调用返回当前状态，不重复生效）；写操作先 `SELECT ... FOR UPDATE` 抢占批次行。
+4. **撤回不丢数据**：只改状态不删行；已生效批次按撤回计划回退——当前价已被后续采集改写的房源**跳过不覆盖**；每次改价（修正 / 手工 / 采集 / 撤回）都追加 `listing_price_versions`，审计日志全程保留。
 
 ### 两个真算算法（全部在 Python 后端，前端不含任何硬编码结果）
 
@@ -88,9 +98,9 @@ docker compose exec backend python -m scripts.seed_demo
 
 | 邮箱 | 角色 | 能做什么 | 不能做什么（真实 403） |
 |---|---|---|---|
-| `admin@rentlens.io` | 研究组长 | 改采集源、跑采集、复核、修单价、导出行情 CSV、看审计 | — |
-| `analyst@rentlens.io` | 数据专员 | 跑采集、复核工单、修单价 | `POST/PATCH /api/sources`（改源配置）403、导出 CSV 403 |
-| `client@rentlens.io` | 中介客户（只读） | 看挂牌池、房源详情、核验队列 | `POST /api/ingest-runs` 403、`PATCH /api/flags/{id}` 403、`GET /api/exports/market.csv` 403、`GET /api/sources` 与 `GET /api/ingest-runs` 403（采集运行属内部信息）；接口返回里 `agent_contact` 为 `null` |
+| `admin@rentlens.io` | 研究组长 | 改采集源、跑采集、复核、修单价、审批/发布/撤回修正批次、导出行情 CSV、看审计 | — |
+| `analyst@rentlens.io` | 数据专员 | 跑采集、复核工单、修单价、提报修正批次 | `POST/PATCH /api/sources`（改源配置）403、导出 CSV 403、修正批次审批/发布/撤回 403 |
+| `client@rentlens.io` | 中介客户（只读） | 看挂牌池、房源详情、核验队列 | `POST /api/ingest-runs` 403、`PATCH /api/flags/{id}` 403、`GET /api/exports/market.csv` 403、`GET /api/sources` 与 `GET /api/ingest-runs` 403（采集运行属内部信息）、`GET /api/corrections` 403；接口返回里 `agent_contact` 为 `null` |
 
 **本地开发**
 
@@ -136,21 +146,21 @@ gb-577/
 │   └── src/
 │       ├── config/               # settings / database / celery_app / app
 │       ├── constants/            # enums / roles / limits（算法阈值）/ error_codes / log_templates
-│       ├── models/               # user audit source listing cluster price_flag ingest_run block_stat
-│       ├── schemas/              # auth source listing cluster price_flag ingest common
-│       ├── services/             # fetch parsers fingerprint price cluster ingest listing source flag export audit overview
-│       ├── controllers/          # auth source listing cluster flag ingest export overview
-│       ├── routes/               # health auth overview sources listings clusters flags ingest_runs exports audit
+│       ├── models/               # user audit source listing cluster price_flag ingest_run block_stat correction
+│       ├── schemas/              # auth source listing cluster price_flag ingest correction common
+│       ├── services/             # fetch parsers fingerprint price cluster ingest listing source flag export audit overview correction(+rules)
+│       ├── controllers/          # auth source listing cluster flag ingest export overview correction
+│       ├── routes/               # health auth overview sources listings clusters flags ingest_runs corrections exports audit
 │       └── middlewares/          # auth / audit_logger / rate_limit / error_handler / rbac
 └── frontend/
     ├── Dockerfile  nginx.conf  vite.config.ts  tsconfig.json
     └── src/
-        ├── api/                  # client auth overview sources listings clusters flags ingest exports
-        ├── stores/               # auth ui listings clusters flags sources
+        ├── api/                  # client auth overview sources listings clusters flags ingest exports corrections
+        ├── stores/               # auth ui listings clusters flags sources corrections
         ├── hooks/                # useAsync useFilters(useDebouncedValue) useToast
         ├── components/common/    # LedgerTable StampTag PriceSeriesChart MetricStrip FilterBar EmptyState ErrorState Toasts
         ├── components/layout/    # AppShell
-        ├── pages/                # Login Listings ListingDetail Sources Flags
+        ├── pages/                # Login Listings ListingDetail Sources Flags Corrections
         ├── router/               # index + guards
         ├── constants/            # enums roles ui
         ├── types/  utils/  styles/
@@ -198,6 +208,7 @@ gb-577/
 | `IngestStatus`（running/success/partial/failed） | 同上 | `services/ingest_service.py`、`models/ingest_run.py`、`scripts/seed_demo.py` | 同上 + `INGEST_STATUS_LABELS` | `pages/Sources.tsx` |
 | `PlatformKind`（aggregator/portal/forum/moments/notice） | 同上 | `services/parsers.py`、`services/source_service.py`、`fixtures/sources.json` | 同上 + `PLATFORM_LABELS` | `pages/Sources.tsx` |
 | `Layout` / `FloorBand` | 同上 | `services/parsers.py`、`utils/similarity.py` | 同上 | `pages/Listings.tsx`、`pages/ListingDetail.tsx` |
+| `CorrectionStatus`（submitted/approved/applied/conflict/failed/withdrawn） | 同上 | `services/correction_rules.py`、`services/correction_service.py`、`models/correction.py` | 同上 + `CORRECTION_STATUS_LABELS` | `pages/Corrections.tsx`、`components/common/StampTag.tsx`（样式） |
 
 算法阈值集中在 `backend/src/constants/limits.py`（前端只展示，不参与判定）。
 

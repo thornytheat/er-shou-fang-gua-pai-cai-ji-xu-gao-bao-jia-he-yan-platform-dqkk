@@ -9,6 +9,7 @@ const FALLBACK: Record<string, string> = {
   RATE_LIMITED: '请求过于频繁，稍后再试',
   VALIDATION: '请求参数不合法',
   INGEST_RUNNING: '已有采集任务在运行',
+  BATCH_STATE: '批次当前状态不允许该操作，刷新看看最新状态',
   EXPORT_EMPTY: '当前筛选条件下没有可导出的记录',
   INTERNAL: '服务内部错误',
 };
